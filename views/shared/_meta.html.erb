@@ -1,0 +1,31 @@
+<%# Knopp Media Sign: Link-Vorschau (z. B. WhatsApp) und Symbole mit der eigenen Marke statt DocuSeal %>
+<% marke = ENV.fetch('SIGN_MARKE', 'Knopp Media') %>
+<% if Docuseal.demo? || (request.path != '/' && !devise_controller?) %>
+  <meta name="robots" content="noindex">
+<% end %>
+<% title = content_for(:html_title) || marke %>
+<% description = content_for(:html_description) || "Dokumente sicher digital unterschreiben – #{marke}." %>
+<meta name="description" content="<%= description %>">
+<meta property="og:title" content="<%= title %>">
+<meta property="og:description" content="<%= description %>">
+<meta property="og:type" content="website">
+<meta property="og:url" content="<%= root_url %>">
+<meta property="og:site_name" content="<%= marke %>">
+<% if content_for(:disable_image_preview) %>
+  <meta property="og:image" content="">
+  <meta name="twitter:image" content="">
+<% else %>
+  <meta property="og:image" content="<%= content_for(:preview_image_url).presence || "#{root_url}branding/icon.png" %>">
+  <meta property="og:image:width" content="512">
+  <meta property="og:image:height" content="512">
+  <meta name="twitter:image" content="<%= content_for(:preview_image_url).presence || "#{root_url}branding/icon.png" %>">
+<% end %>
+<meta name="twitter:card" content="summary">
+<meta name="twitter:title" content="<%= title %>">
+<meta name="twitter:description" content="<%= description %>">
+<link rel="apple-touch-icon" sizes="180x180" href="/branding/apple-touch-icon.png">
+<link rel="icon" type="image/png" sizes="32x32" href="/branding/favicon-32x32.png">
+<link rel="icon" type="image/png" sizes="96x96" href="/branding/favicon-96x96.png">
+<link rel="icon" type="image/png" sizes="16x16" href="/branding/favicon-16x16.png">
+<link rel="icon" type="image/svg+xml" href="/branding/favicon.svg">
+<meta name="theme-color" content="#faf7f5">

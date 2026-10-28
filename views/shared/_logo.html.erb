@@ -1,0 +1,2 @@
+<%# Knopp Media Sign: Markensymbol statt DocuSeal-Logo (Bild je Instanz unter /branding, siehe docker-compose.yml) %>
+<img src="/branding/icon.png" alt="<%= ENV.fetch('SIGN_MARKE', 'Knopp Media') %>" class="<%= local_assigns[:class] %>" width="<%= local_assigns.fetch(:width, '37') %>" height="<%= local_assigns.fetch(:height, '37') %>" style="object-fit:contain">

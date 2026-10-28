@@ -1,0 +1,9 @@
+<%# Knopp Media Sign: Seitentitel mit der eigenen Marke statt „DocuSeal“ %>
+<title>
+  <%= turbo_native_app? ? content_for(:native_title) : (content_for(:html_title) || ENV.fetch('SIGN_MARKE', 'Knopp Media')) %>
+</title>
+<%= render 'shared/meta' %>
+<% if turbo_native_app? %>
+  <meta name="turbo-cache-control" content="no-preview">
+  <%= render 'layouts/native_styles' %>
+<% end %>
