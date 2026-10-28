@@ -1,8 +1,14 @@
-<%# Knopp Media Sign: Seitentitel mit der eigenen Marke statt „DocuSeal“ %>
+<%# Knopp Media Sign: Seitentitel mit der eigenen Marke statt „DocuSeal“ und Markenfarben je Instanz %>
 <title>
   <%= turbo_native_app? ? content_for(:native_title) : (content_for(:html_title) || ENV.fetch('SIGN_MARKE', 'Knopp Media')) %>
 </title>
 <%= render 'shared/meta' %>
+<%# Farben (HSL wie im daisyUI-Theme von DocuSeal): n = Knöpfe, a = Akzent, p/s = helle Töne, b1–b3 = Hintergründe, bc = Text %>
+<% if ENV.fetch('SIGN_MARKE', '') == 'PresseKreis' %>
+  <style>html[data-theme=docuseal]{--n:224 89% 7%;--nc:0 0% 100%;--a:39 63% 57%;--ac:224 89% 7%;--p:41 67% 91%;--pc:224 89% 7%;--s:39 63% 80%;--b1:225 18% 97%;--b2:225 21% 93%;--b3:223 21% 89%;--bc:224 63% 12%;--rounded-btn:.8rem}</style>
+<% else %>
+  <style>html[data-theme=docuseal]{--n:0 0% 13%;--nc:0 0% 100%;--a:35 100% 47%;--ac:0 0% 100%;--p:35 93% 91%;--pc:0 0% 13%;--s:35 100% 80%;--b1:0 0% 98%;--b2:30 14% 94%;--b3:30 10% 89%;--bc:0 0% 12%;--rounded-btn:.8rem}</style>
+<% end %>
 <% if turbo_native_app? %>
   <meta name="turbo-cache-control" content="no-preview">
   <%= render 'layouts/native_styles' %>

@@ -11,7 +11,7 @@ Gemäß AGPL-3.0 stellen wir hier den Quelltext unserer Änderungen bereit. Geä
 | `views/submit_form/_docuseal_logo.html.erb`, `views/start_form/_docuseal_logo.html.erb` | Markenlogo über den Formularen |
 | `views/shared/_powered_by.html.erb`, `views/shared/_attribution.html.erb` | Fußzeile mit Marke und Link auf diesen Quelltext |
 | `views/shared/_email_attribution.html.erb` | E-Mail-Fußzeile mit der Marke |
-| `views/layouts/_head_tags.html.erb`, `views/shared/_html_title.html.erb`, `views/shared/_meta.html.erb` | Seitentitel, Link-Vorschau und Symbole mit der Marke |
+| `views/layouts/_head_tags.html.erb`, `views/shared/_html_title.html.erb`, `views/shared/_meta.html.erb` | Seitentitel, Link-Vorschau, Symbole und Farben der Marke |
 
 Die Dateien ersetzen beim Start die gleichnamigen Dateien unter `/app/app/views/` im offiziellen Image `docuseal/docuseal:3.3.3`. Die Marke kommt aus der Umgebungsvariable `SIGN_MARKE`, die Bilder liegen unter `/app/public/branding/`. Den vollständigen Quelltext von DocuSeal finden Sie unter https://github.com/docusealco/docuseal.
 
