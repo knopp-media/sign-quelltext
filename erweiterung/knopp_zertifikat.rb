@@ -1,7 +1,8 @@
 # frozen_string_literal: true
 
-# Knopp Media Sign: eigenes Abschlusszertifikat statt des DocuSeal-Prüfprotokolls (Aufbau angelehnt an das
-# „Signature Certificate“ von PandaDoc) und Marke statt „DocuSeal“ in Signatur, PDF-Metadaten und Mails.
+# Knopp Media Sign: eigenes Abschlusszertifikat statt des DocuSeal-Prüfprotokolls (angelehnt an das
+# „Certificate of Signature“ von PandaDoc: Guilloche-Band wie auf Wertpapieren, Siegel, Spalten
+# Unterzeichner | Zeitstempel | Unterschrift) und Marke statt „DocuSeal“ in Signatur, PDF-Metadaten und Mails.
 # Eingebunden per Compose als config/initializers/knopp_zertifikat.rb. Ersetzt nur Methoden (prepend),
 # DocuSeal-Dateien bleiben unverändert; branding/pruefen.sh hält das Ausrollen an, wenn sich die
 # benutzten DocuSeal-Teile ändern (erweiterung/abhaengig.sha256).
@@ -11,9 +12,11 @@ module KnoppMarke
   HOST = ENV.fetch('HOST', PK ? 'sign.pressekreis.de' : 'sign.knopp-media.de')
   FIRMA = PK ? 'PresseKreis · Ein Service der Knopp Media GmbH' : 'Knopp Media GmbH'
   FARBE = PK ? '020b23' : 'ff8a00'      # Hauptfarbe (Logo)
-  AKZENT = PK ? 'd6a64d' : '222222'     # Kante unter dem Streifen
+  AKZENT = PK ? 'd6a64d' : '222222'     # zweite Farbe (Goldkante bzw. Dunkelgrau)
+  PAPIER = PK ? 'f7f5ef' : 'fbf7f1'     # Hintergrund des Zertifikats
   LOGO = '/app/public/branding/logo.png'
-  LOGO_BREITE = PK ? 150 : 118          # Punkte, Höhe ergibt sich aus 120 px Bildhöhe
+  ZEICHEN = '/app/public/branding/icon.png'
+  LOGO_BREITE = PK ? 170 : 135          # Punkte, Höhe ergibt sich aus 120 px Bildhöhe
 
   module Produkt
     def product_name
@@ -39,8 +42,7 @@ module KnoppMarke
   module Zertifikat
     TEXT = '1f2433'
     GRAU = '6b7280'
-    LINIE = 'e3e6ec'
-    FLAECHE = 'f5f6f8'
+    LINIE = 'd9dce3'
     EREIGNISSE = {
       'send_email' => 'Unterschriftslink per E-Mail gesendet an',
       'send_reminder_email' => 'Erinnerung per E-Mail gesendet an',
@@ -51,6 +53,7 @@ module KnoppMarke
       'api_complete_form' => 'Ausgefüllt und abgeschlossen (ohne Unterschrift) von',
       'decline_form' => 'Abgelehnt von'
     }.freeze
+    INTERN = /\A(10|127|172\.(1[6-9]|2\d|3[01])|192\.168)\./
 
     def sign_reason
       "Abschlusszertifikat #{KnoppMarke::NAME} (#{KnoppMarke::HOST})"
@@ -71,98 +74,120 @@ module KnoppMarke
       composer.document.config['font.on_missing_glyph'] = Submissions::GenerateResultAttachments.method(:on_missing_glyph).to_proc
 
       timezone = account.timezone
-      zeit = ->(t) { t && "#{t.in_time_zone(timezone).strftime('%d.%m.%Y, %H:%M:%S')} #{TimeUtils.timezone_abbr(timezone, t)}" }
+      zeit = ->(t) { t && "#{t.in_time_zone(timezone).strftime('%d.%m.%Y  %H:%M:%S')} #{TimeUtils.timezone_abbr(timezone, t)}" }
       fett = ->(text, **o) { { text: text.to_s, font: [font, { variant: :bold }], **o } }
-      referenz = Digest::MD5.hexdigest(submission.slug).upcase
+      marke = ->(text) { { text: "#{text}\n", font: [font, { variant: :bold }], font_size: 6, fill_color: GRAU, character_spacing: 0.9 } }
+      wert = ->(text, **o) { { text: "#{text}\n", font_size: 8.5, character_spacing: 0.3, **o } }
+      box = ->(teile, **o) { composer.document.layout.formatted_text_box(teile.compact, line_spacing: 1.3, **o) }
+
+      referenz = Digest::MD5.hexdigest(submission.slug).upcase.scan(/.{4}/).first(5).join('-')
       titel = submission.name || submission.template&.name || 'Dokument'
       submitters = submission.template_submitters.filter_map { |i| [i, submission.submitters.find { |s| s.uuid == i['uuid'] }] }
                              .select { |_, s| s }
       abgeschlossen = submission.submitters.filter_map(&:completed_at).max
+      seitenzahl = 0
 
       composer.page_style(:default, page_size: :A4) do |canvas, style|
-        box = canvas.context.box(:media)
-        canvas.save_graphics_state do
-          canvas.fill_color(KnoppMarke::FARBE).rectangle(0, box.height - 8, box.width, 8).fill
-          canvas.fill_color(KnoppMarke::AKZENT).rectangle(0, box.height - 10, box.width, 2).fill
-          canvas.stroke_color(LINIE).line_width(0.5).line(50, 42, box.width - 50, 42).stroke
-        end
-        style.frame = style.create_frame(canvas.context, [55, 50, 60, 50])
+        seitenzahl += 1
+        hintergrund(canvas, erste: seitenzahl == 1)
+        style.frame = style.create_frame(canvas.context, [78, 58, 64, 58])
       end
-      composer.style(:base, font:, font_size: 9, fill_color: TEXT, line_spacing: 1.25)
-      composer.style(:klein, font:, font_size: 7.5, fill_color: GRAU, line_spacing: 1.25)
-      composer.style(:abschnitt, font: [font, { variant: :bold }], font_size: 8, fill_color: GRAU, character_spacing: 0.8,
-                                 padding: [16, 0, 6, 0])
+      composer.style(:base, font:, font_size: 8.5, fill_color: TEXT, line_spacing: 1.25)
+      composer.style(:abschnitt, font: [font, { variant: :bold }], font_size: 7.5, fill_color: KnoppMarke::FARBE,
+                                 character_spacing: 1.4, padding: [14, 0, 6, 0])
       composer.new_page
 
-      # Kopf: Logo links, Titel rechts
-      if File.exist?(KnoppMarke::LOGO)
-        composer.image(KnoppMarke::LOGO, width: KnoppMarke::LOGO_BREITE, position: :float, margin: [4, 0, 0, 0])
+      # Kopf: Logo, Titel, Referenz und Abschluss
+      composer.image(KnoppMarke::LOGO, width: KnoppMarke::LOGO_BREITE, style: { align: :center }) if File.exist?(KnoppMarke::LOGO)
+      composer.formatted_text([fett.call('ABSCHLUSSZERTIFIKAT', font_size: 21, character_spacing: 2.2, fill_color: KnoppMarke::FARBE)],
+                              text_align: :center, padding: [12, 0, 0, 0])
+      composer.formatted_text([{ text: 'über die elektronische Unterschrift', font_size: 9.5, fill_color: GRAU }],
+                              text_align: :center, padding: [0, 0, 14, 0])
+      composer.table([[box.call([marke.call('REFERENZNUMMER'), wert.call(referenz), marke.call('DOKUMENT'), wert.call(titel)]),
+                       box.call([marke.call('VON ALLEN PARTEIEN ABGESCHLOSSEN AM'),
+                                 wert.call(zeit.call(abgeschlossen) || 'noch offen'),
+                                 abgeschlossen && { text: "#{abgeschlossen.utc.strftime('%d.%m.%Y  %H:%M:%S')} UTC\n", font_size: 7, fill_color: GRAU }],
+                                text_align: :right)]],
+                     column_widths: [-1, -1], cell_style: { padding: [0, 0, 6, 0], border: { width: 0 } })
+
+      # Unterzeichner | Zeitstempel | Unterschrift
+      kopf = %w[UNTERZEICHNER ZEITSTEMPEL UNTERSCHRIFT].map do |t|
+        box.call([fett.call(t, font_size: 7, character_spacing: 1.2, fill_color: KnoppMarke::FARBE)])
       end
-      composer.formatted_text([fett.call('Abschlusszertifikat', font_size: 18), "\n",
-                               { text: "Elektronische Unterschrift über #{KnoppMarke::HOST}", font_size: 8, fill_color: GRAU }],
-                              text_align: :right, padding: [0, 0, 14, 0])
-      composer.box(:base, height: 1, style: { background_color: KnoppMarke::AKZENT == '222222' ? KnoppMarke::FARBE : KnoppMarke::AKZENT,
-                                              margin: [0, 0, 6, 0] })
-
-      # Übersicht wie bei PandaDoc: Dokument, Referenz, Zeitpunkte, Prüfsummen
-      dokument = select_attachments(submission.submitters.select(&:completed_at).max_by(&:completed_at)).first
-      original = submission.schema_documents.first
-      zeile = ->(k, v) { [composer.document.layout.formatted_text_box([{ text: k, fill_color: GRAU }]),
-                          composer.document.layout.formatted_text_box([v].flatten)] }
-      uebersicht = [
-        zeile.call('Dokument', fett.call(titel)),
-        zeile.call('Referenznummer', referenz),
-        zeile.call('Umschlag-ID', submission.id.to_s),
-        zeile.call('Erstellt', [zeit.call(submission.created_at), submission.created_by_user && " von #{submission.created_by_user.full_name}"].compact.join),
-        zeile.call('Abgeschlossen', zeit.call(abgeschlossen) || 'offen'),
-        zeile.call('Unterzeichner', submitters.size.to_s),
-        original && zeile.call('Original (SHA-256)', { text: original.metadata['sha256'] || original.checksum, font_size: 7.5 }),
-        dokument && zeile.call('Ergebnis (SHA-256)', { text: dokument.metadata['sha256'] || dokument.checksum, font_size: 7.5 })
-      ].compact
-      composer.table(uebersicht, column_widths: [110, -1],
-                                 cell_style: { padding: [4, 10, 4, 10], border: { width: 0 }, background_color: FLAECHE })
-
-      # Unterzeichner: je eine Karte mit Person, Zeitpunkten/Nachweisen und Unterschrift
-      composer.text('UNTERZEICHNER', style: :abschnitt)
-      submitters.each do |item, s|
+      zeilen = submitters.map do |item, s|
         events = submission.submission_events.select { |e| e.submitter_id == s.id }
         erstes = ->(typ) { events.select { |e| e.event_type == typ }.min_by(&:event_timestamp) }
         fertig = erstes.call('complete_form')
         api = erstes.call('api_complete_form')
-        geklickt = events.any? { |e| e.event_type.in?(%w[click_email email_verified]) }
+        gesendet = erstes.call('send_email')
+        geklickt = events.select { |e| e.event_type.in?(%w[click_email email_verified]) }.min_by(&:event_timestamp)
+        daten = fertig&.data || {}
+        ip = daten['ip'].to_s.match?(INTERN) ? nil : daten['ip']
 
-        person = [fett.call(s.name.presence || s.email, font_size: 10), "\n",
-                  { text: "#{item['name']}\n", fill_color: GRAU }, s.email.to_s, "\n",
-                  geklickt ? { text: "\n✓ Über den persönlichen E-Mail-Link geöffnet", fill_color: '1f8a55', font_size: 7.5 } : '']
-        nachweise = [
-          ['Gesendet', zeit.call(erstes.call('send_email')&.event_timestamp)],
-          ['Angesehen', zeit.call(erstes.call('view_form')&.event_timestamp)],
-          ['Unterschrieben', zeit.call(fertig&.event_timestamp)],
-          api && ['Abgeschlossen', "#{zeit.call(api.event_timestamp)} (ausgefüllt, ohne Unterschrift)"],
-          fertig&.data&.dig('ip') && ['IP-Adresse', fertig.data['ip']],
-          fertig&.data&.dig('ua') && ['Gerät', geraet(fertig.data['ua'])],
-          s.timezone && ['Zeitzone', s.timezone.to_s]
-        ].compact.select { |_, v| v.present? }.flat_map { |k, v| [{ text: "#{k}: ", fill_color: GRAU }, "#{v}\n"] }
-
+        person = [fett.call("#{(s.name.presence || s.email).to_s.upcase}\n", font_size: 9.5, character_spacing: 0.4),
+                  { text: "#{item['name']}\n\n", font_size: 7.5, fill_color: GRAU },
+                  marke.call('E-MAIL'), wert.call(s.email.to_s),
+                  marke.call('EMPFÄNGERPRÜFUNG'),
+                  wert.call(if api then 'Eigene Seite, über den Assistenten'
+                            elsif geklickt then "Persönlicher E-Mail-Link geöffnet\n#{zeit.call(geklickt.event_timestamp)}"
+                            elsif gesendet then 'Link per E-Mail zugestellt'
+                            else 'Persönlicher Link (ohne E-Mail)'
+                            end)]
+        stempel = [['GESENDET', gesendet&.event_timestamp], ['ANGESEHEN', erstes.call('view_form')&.event_timestamp],
+                   ['UNTERSCHRIEBEN', fertig&.event_timestamp], ['ABGESCHLOSSEN (OHNE UNTERSCHRIFT)', api&.event_timestamp]]
+                  .select { |_, t| t }.flat_map { |k, t| [marke.call(k), wert.call(zeit.call(t))] }
         bild = unterschrift_bild(submission, s)
-        rechts = if bild
-                   composer.document.layout.image_box(bild[:io], width: bild[:breite], height: bild[:hoehe])
-                 else
-                   composer.document.layout.formatted_text_box([{ text: api ? 'keine Unterschrift nötig' : '–', fill_color: GRAU }])
-                 end
-        composer.table([[composer.document.layout.formatted_text_box(person),
-                         composer.document.layout.formatted_text_box(nachweise.presence || [{ text: 'noch offen', fill_color: GRAU }]),
-                         rechts]],
-                       column_widths: [150, -1, 165],
-                       cell_style: { padding: [10, 10, 10, 10], border: { width: [0.6, 0, 0.6, 0], color: LINIE } },
-                       margin: [0, 0, 8, 0])
-
-        angaben = angaben(submission, s)
-        if angaben.any?
-          composer.formatted_text(angaben.flat_map { |k, v| [{ text: "#{k}: ", fill_color: GRAU }, "#{v}   "] },
-                                  style: :klein, padding: [0, 0, 10, 0])
-        end
+        unterschrift = []
+        unterschrift << composer.document.layout.image_box(bild[:io], width: bild[:breite], height: bild[:hoehe],
+                                                           style: { border: { width: 0.7, color: KnoppMarke::AKZENT }, padding: 5 }) if bild
+        unterschrift << box.call([api ? { text: "keine Unterschrift nötig\n", fill_color: GRAU } : (bild ? nil : { text: "–\n", fill_color: GRAU }),
+                                  ip && marke.call('IP-ADRESSE'), ip && wert.call(ip),
+                                  daten['ua'] && marke.call('GERÄT'), daten['ua'] && wert.call(geraet(daten['ua'])),
+                                  s.timezone && marke.call('ZEITZONE'), s.timezone && wert.call(s.timezone.to_s)], padding: [6, 0, 0, 0])
+        [box.call(person), box.call(stempel.presence || [wert.call('noch offen', fill_color: GRAU)]),
+         unterschrift]
       end
+      composer.table(zeilen, header: ->(_t) { [kopf] }, column_widths: [-1.15, -1, -1.25],
+                             cell_style: lambda { |cell|
+                               cell.style.padding = [9, 8, 9, 0]
+                               cell.style.border = { width: [cell.row.zero? ? 0 : 0.6, 0, 0, 0], color: LINIE }
+                             })
+
+      # Nachweise zum Dokument
+      composer.text('DOKUMENT UND NACHWEISE', style: :abschnitt)
+      dokument = select_attachments(submission.submitters.select(&:completed_at).max_by(&:completed_at)).first
+      original = submission.schema_documents.first
+      seiten_dok = begin
+        HexaPDF::Document.new(io: StringIO.new(dokument.download)).pages.count if dokument
+      rescue StandardError
+        nil
+      end
+      zeile = ->(k, v) { [box.call([{ text: k, fill_color: GRAU }]), box.call([v].flatten)] }
+      nachweise = [
+        zeile.call('Umschlag-ID', submission.id.to_s),
+        seiten_dok && zeile.call('Seiten im Dokument', seiten_dok.to_s),
+        zeile.call('Erstellt', [zeit.call(submission.created_at),
+                                submission.created_by_user && " von #{submission.created_by_user.full_name} (#{submission.created_by_user.email})"].compact.join),
+        zeile.call('Ausgestellt über', "#{KnoppMarke::HOST} (#{KnoppMarke::FIRMA})"),
+        original && zeile.call('Original (SHA-256)', { text: original.metadata['sha256'] || original.checksum, font_size: 7 }),
+        dokument && zeile.call('Ergebnis (SHA-256)', { text: dokument.metadata['sha256'] || dokument.checksum, font_size: 7 })
+      ].compact
+      submitters.each do |item, s|
+        fertig = submission.submission_events.find { |e| e.submitter_id == s.id && e.event_type == 'complete_form' }
+        next unless fertig
+
+        nachweise << zeile.call("Sitzung #{item['name']}", [{ text: "#{fertig.data['sid']}\n", font_size: 7 },
+                                                             { text: fertig.data['ua'].to_s.squish, font_size: 6.5, fill_color: GRAU }])
+        angaben = angaben(submission, s)
+        nachweise << zeile.call("Angaben #{item['name']}", angaben.map { |k, v| "#{k}: #{v}" }.join("\n")) if angaben.any?
+      end
+      composer.table(nachweise, column_widths: [115, -1],
+                                cell_style: lambda { |cell|
+                                  cell.style.padding = [4, 8, 4, 8]
+                                  cell.style.border = { width: 0 }
+                                  cell.style.background_color = cell.row.even? ? 'ffffff' : nil
+                                  cell.style.background_alpha = 0.75
+                                })
 
       # Verlauf
       composer.text('VERLAUF', style: :abschnitt)
@@ -182,39 +207,94 @@ module KnoppMarke
                   end
                   text.match(%r{<b>(.*?)</b>(.*)}m)&.captures || [text, '']
                 end
-        # interne Adressen (Aufrufe aus dem Assistenten im Docker-Netz) nicht als IP des Unterzeichners zeigen
-        ip = e.data.is_a?(Hash) && e.data['ip'].present? && !e.data['ip'].match?(/\A(10|127|172\.(1[6-9]|2\d|3[01])|192\.168)\./) ? "  · IP #{e.data['ip']}" : ''
-        [composer.document.layout.formatted_text_box([{ text: zeit.call(e.event_timestamp), fill_color: GRAU }]),
-         composer.document.layout.formatted_text_box([fett.call(teile[0]), teile[1].to_s.squish.prepend(' '), { text: ip, fill_color: GRAU }])]
+        ip = e.data.is_a?(Hash) && e.data['ip'].present? && !e.data['ip'].match?(INTERN) ? "  · IP #{e.data['ip']}" : ''
+        [box.call([{ text: zeit.call(e.event_timestamp), fill_color: GRAU, character_spacing: 0.3 }]),
+         box.call([fett.call(teile[0]), teile[1].to_s.squish.prepend(' '), { text: ip, fill_color: GRAU }])]
       end
       if verlauf.any?
-        composer.table(verlauf, column_widths: [135, -1],
+        composer.table(verlauf, column_widths: [125, -1],
                                 cell_style: lambda { |cell|
-                                  cell.style.padding = [5, 8, 5, 8]
+                                  cell.style.padding = [4, 8, 4, 8]
                                   cell.style.border = { width: 0 }
-                                  cell.style.background_color = cell.row.even? ? FLAECHE : 'ffffff'
+                                  cell.style.background_color = cell.row.even? ? 'ffffff' : nil
+                                  cell.style.background_alpha = 0.75
                                 })
       end
 
       composer.formatted_text(
-        [{ text: abgeschlossen ? "Von allen Parteien elektronisch unterschrieben am #{zeit.call(abgeschlossen)}. " : '' },
-         { text: "Das Dokument und dieses Zertifikat sind digital versiegelt. Jede spätere Änderung macht die Signatur ungültig. Die Prüfsummen oben belegen, dass das Ergebnis aus dem Original entstanden ist." }],
-        style: :klein, padding: [16, 0, 0, 0]
+        [fett.call('Rechtlicher Hinweis: ', fill_color: GRAU),
+         { text: 'Elektronische Signatur im Sinne von Art. 3 Nr. 10 der eIDAS-Verordnung (EU) Nr. 910/2014. ' \
+                 'Die Unterzeichner wurden über ihre persönliche E-Mail-Adresse bzw. ihren persönlichen Link identifiziert. ' \
+                 "Dokument und Zertifikat sind mit einem digitalen Siegel der Knopp Media GmbH (X.509, SHA-256) versiegelt; " \
+                 'jede spätere Änderung macht das Siegel ungültig. Die Prüfsummen belegen, dass das Ergebnis aus dem Original entstanden ist. ' \
+                 "Zeitangaben in #{timezone} (zusätzlich UTC beim Abschluss).", fill_color: GRAU }],
+        font_size: 7, line_spacing: 1.3, padding: [14, 0, 0, 0]
       )
 
       # Fußzeile mit Seitenzahlen (erst jetzt bekannt)
       seiten = composer.document.pages.count
       composer.document.pages.each_with_index do |seite, i|
         canvas = seite.canvas(type: :overlay)
-        canvas.font(font, size: 7).fill_color(GRAU)
-        canvas.text("#{KnoppMarke::FIRMA} · Referenz #{referenz}", at: [50, 30])
-        breite = canvas.font.decode_utf8("Seite #{i + 1} von #{seiten}").sum { |g| g.width } * 7 / 1000.0
-        canvas.text("Seite #{i + 1} von #{seiten}", at: [seite.box(:media).width - 50 - breite, 30])
+        canvas.font(font, size: 6.5).fill_color(GRAU)
+        canvas.text("#{KnoppMarke::FIRMA} · Referenz #{referenz}", at: [58, 40])
+        text = "Seite #{i + 1} von #{seiten}"
+        breite = canvas.font.decode_utf8(text).sum(&:width) * 6.5 / 1000.0
+        canvas.text(text, at: [seite.box(:media).width - 58 - breite, 40])
       end
 
       composer.document
     end
     # rubocop:enable Metrics
+
+    # Papierton, Guilloche-Bänder oben und unten, Doppelrahmen; auf Seite 1 Siegel und Kreis hinter den Zeitstempeln
+    def hintergrund(canvas, erste:)
+      b = canvas.context.box(:media)
+      w = b.width
+      h = b.height
+      canvas.save_graphics_state do
+        canvas.fill_color(KnoppMarke::PAPIER).rectangle(0, 0, w, h).fill
+        guilloche(canvas, 0, w, h - 26, 15)
+        guilloche(canvas, 0, w, 16, 9)
+        canvas.stroke_color(KnoppMarke::AKZENT).line_width(0.8).rectangle(24, 24, w - 48, h - 66).stroke
+        canvas.stroke_color(KnoppMarke::FARBE).line_width(0.3).rectangle(28, 28, w - 56, h - 74).stroke
+        if erste
+          canvas.opacity(stroke_alpha: 0.35) do
+            canvas.stroke_color(KnoppMarke::AKZENT).line_width(0.6).circle(w / 2.0 - 10, h - 345, 78).stroke
+          end
+          siegel(canvas, w - 96, h - 118, 30)
+        end
+      end
+    end
+
+    def guilloche(canvas, x0, x1, mitte, hoehe)
+      canvas.opacity(stroke_alpha: 0.45) do
+        [[KnoppMarke::FARBE, 0.0], [KnoppMarke::AKZENT, 0.9]].each do |farbe, versatz|
+          canvas.stroke_color(farbe).line_width(0.3)
+          8.times do |k|
+            phase = (k * 0.42) + versatz
+            punkte = (0..((x1 - x0) / 2.5).to_i).map do |i|
+              x = x0 + (i * 2.5)
+              [x, mitte + (hoehe * Math.sin((x / 19.0) + phase) * Math.cos((x / 61.0) - (phase * 0.6)))]
+            end
+            canvas.move_to(*punkte.first)
+            punkte.drop(1).each { |p| canvas.line_to(*p) }
+            canvas.stroke
+          end
+        end
+      end
+    end
+
+    # Rosette wie ein Prägesiegel, Markenzeichen in der Mitte
+    def siegel(canvas, cx, cy, r)
+      canvas.opacity(stroke_alpha: 0.55) do
+        canvas.stroke_color(KnoppMarke::AKZENT).line_width(0.35)
+        24.times { |i| canvas.ellipse(cx, cy, a: r, b: r * 0.38, inclination: i * 7.5).stroke }
+      end
+      canvas.stroke_color(KnoppMarke::FARBE).line_width(1.2).circle(cx, cy, r + 5).stroke
+      canvas.stroke_color(KnoppMarke::AKZENT).line_width(0.5).circle(cx, cy, r + 8).stroke
+      canvas.fill_color(KnoppMarke::PAPIER).circle(cx, cy, r * 0.42).fill
+      canvas.image(KnoppMarke::ZEICHEN, at: [cx - (r * 0.32), cy - (r * 0.32)], width: r * 0.64, height: r * 0.64) if File.exist?(KnoppMarke::ZEICHEN)
+    end
 
     def geraet(ua)
       ua = ua.to_s
@@ -232,8 +312,8 @@ module KnoppMarke
 
       bild = ImageUtils.load_vips(anhang.download, content_type: anhang.content_type, autorot: true)
       bild = bild.resize([600.0 / bild.width, 600.0 / bild.height, 1].min)
-      breite = 135.0
-      hoehe = [bild.height * (breite / bild.width), 60].min
+      breite = 160.0
+      hoehe = [bild.height * (breite / bild.width), 55].min
       breite = hoehe * bild.width / bild.height
       { io: StringIO.new(bild.write_to_buffer('.png', strip: true)), breite:, hoehe: }
     rescue StandardError
