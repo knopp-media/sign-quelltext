@@ -17,6 +17,30 @@
   html[data-theme=docuseal] body::before{content:"";position:fixed;top:0;left:0;right:0;height:8px;background:#ff8a00;border-bottom:3px solid #222;z-index:9999}
   html[data-theme=docuseal] .btn-neutral:hover{background:#222;border-color:#222;color:#fff}</style>
 <% end %>
+<%# Unterschriftsseite: Knopf „Zur Unterschrift“ oben im Kopf. Öffnet das Unterschriftsfenster und springt zum offenen Feld
+   (über die DocuSeal-eigenen Knöpfe zum Ein-/Ausklappen; verschwindet, wenn nichts mehr offen ist). %>
+<script nonce="<%= content_security_policy_nonce %>">
+document.addEventListener('DOMContentLoaded', function () {
+  var kopf = document.querySelector('#signing_form_header > div');
+  if (!kopf) return;
+  var knopf = document.createElement('button');
+  knopf.type = 'button';
+  knopf.className = 'btn btn-neutral btn-sm !px-5';
+  knopf.style.display = 'none';
+  knopf.textContent = 'Zur Unterschrift';
+  knopf.onclick = function () {
+    var zu = document.getElementById('minimize_form_button');
+    if (zu) zu.click();
+    setTimeout(function () { var auf = document.getElementById('expand_form_button'); if (auf) auf.click(); }, zu ? 60 : 0);
+  };
+  kopf.appendChild(knopf);
+  var pruefen = function () {
+    knopf.style.display = (document.getElementById('expand_form_button') || document.getElementById('minimize_form_button')) ? '' : 'none';
+  };
+  new MutationObserver(pruefen).observe(document.body, {childList: true, subtree: true});
+  pruefen();
+});
+</script>
 <% if turbo_native_app? %>
   <meta name="turbo-cache-control" content="no-preview">
   <%= render 'layouts/native_styles' %>
