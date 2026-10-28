@@ -10,6 +10,7 @@ Gemäß AGPL-3.0 stellen wir hier den Quelltext unserer Änderungen bereit. Geä
 | `views/shared/_title.html.erb` | Markenlogo in der Kopfzeile der Verwaltung |
 | `views/submit_form/_docuseal_logo.html.erb`, `views/start_form/_docuseal_logo.html.erb` | Markenlogo über den Formularen |
 | `views/shared/_powered_by.html.erb`, `views/shared/_attribution.html.erb` | Fußzeile mit Marke und Link auf diesen Quelltext |
+| `views/submit_form/_submission_form.html.erb` | Abschlussseite des Unterschriftsformulars ohne DocuSeal-Hinweis (`data-attribution="false"`) |
 | `views/shared/_email_attribution.html.erb` | E-Mail-Fußzeile mit der Marke |
 | `views/layouts/_head_tags.html.erb`, `views/shared/_html_title.html.erb`, `views/shared/_meta.html.erb` | Seitentitel, Link-Vorschau, Symbole und Farben der Marke, Knopf „Zur Unterschrift“ |
 | `erweiterung/knopp_pdf_vorlagen_controller.rb` | neu: `POST /api/knopp/pdf_vorlagen` (PDF + Felder → Vorlage), eingebunden als `/app/app/controllers/api/knopp_pdf_vorlagen_controller.rb` |
