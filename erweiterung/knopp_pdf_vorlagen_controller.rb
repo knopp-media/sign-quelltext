@@ -49,6 +49,17 @@ module Api
       datei&.close!
     end
 
+    # GET /api/knopp/verlauf/:id – alle Ereignisse eines Vertrags mit IP und Gerät (die normale API gibt diese
+    # Angaben nicht heraus); für die Dokumentation unter „Verträge“ im Assistenten.
+    def verlauf
+      submission = Submission.where(account_id: current_account.id).find(params[:id])
+      authorize!(:read, submission)
+      render json: submission.submission_events.order(:event_timestamp).map { |e|
+        { id: e.id, submitter_id: e.submitter_id, event_type: e.event_type, event_timestamp: e.event_timestamp,
+          ip: e.data['ip'], ua: e.data['ua'], reason: e.data['reason'] }
+      }
+    end
+
     private
 
     def fehler(text)

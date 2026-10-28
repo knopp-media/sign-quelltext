@@ -14,7 +14,7 @@ Gemäß AGPL-3.0 stellen wir hier den Quelltext unserer Änderungen bereit. Geä
 | `views/shared/_email_attribution.html.erb` | E-Mail-Fußzeile mit der Marke |
 | `views/layouts/_head_tags.html.erb`, `views/shared/_html_title.html.erb`, `views/shared/_meta.html.erb` | Seitentitel, Link-Vorschau, Symbole und Farben der Marke, Knopf „Zur Unterschrift“ |
 | `erweiterung/knopp_pdf_vorlagen_controller.rb` | neu: `POST /api/knopp/pdf_vorlagen` (PDF + Felder → Vorlage), eingebunden als `/app/app/controllers/api/knopp_pdf_vorlagen_controller.rb` |
-| `erweiterung/knopp_routen.rb` | neu: Route dazu, eingebunden als `/app/config/initializers/knopp_routen.rb` |
+| `erweiterung/knopp_routen.rb` | neu: Routen dazu (auch `GET /api/knopp/verlauf/:id`: Ereignisse eines Vertrags mit IP und Gerät), eingebunden als `/app/config/initializers/knopp_routen.rb` |
 | `erweiterung/knopp_zertifikat.rb` | neu: eigenes Abschlusszertifikat statt Prüfprotokoll, Marke als Produktname und im Signaturgrund (ersetzt Methoden per `prepend`), eingebunden als `/app/config/initializers/knopp_zertifikat.rb` |
 
 Die Dateien ersetzen beim Start die gleichnamigen Dateien unter `/app/app/views/` im offiziellen Image `docuseal/docuseal:3.3.3`. Die Marke kommt aus der Umgebungsvariable `SIGN_MARKE`, die Bilder liegen unter `/app/public/branding/`. Den vollständigen Quelltext von DocuSeal finden Sie unter https://github.com/docusealco/docuseal.

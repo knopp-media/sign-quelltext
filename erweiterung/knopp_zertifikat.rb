@@ -43,16 +43,6 @@ module KnoppMarke
     TEXT = '1f2433'
     GRAU = '6b7280'
     LINIE = 'd9dce3'
-    EREIGNISSE = {
-      'send_email' => 'Unterschriftslink per E-Mail gesendet an',
-      'send_reminder_email' => 'Erinnerung per E-Mail gesendet an',
-      'click_email' => 'E-Mail-Link geöffnet von',
-      'view_form' => 'Dokument angesehen von',
-      'start_form' => 'Ausfüllen begonnen von',
-      'complete_form' => 'Unterschrieben von',
-      'api_complete_form' => 'Ausgefüllt und abgeschlossen (ohne Unterschrift) von',
-      'decline_form' => 'Abgelehnt von'
-    }.freeze
     INTERN = /\A(10|127|172\.(1[6-9]|2\d|3[01])|192\.168)\./
 
     def sign_reason
@@ -154,7 +144,7 @@ module KnoppMarke
                              })
 
       # Nachweise zum Dokument
-      composer.text('DOKUMENT UND NACHWEISE', style: :abschnitt)
+      composer.text('DOKUMENT', style: :abschnitt)
       dokument = select_attachments(submission.submitters.select(&:completed_at).max_by(&:completed_at)).first
       original = submission.schema_documents.first
       seiten_dok = begin
@@ -172,15 +162,8 @@ module KnoppMarke
         original && zeile.call('Original (SHA-256)', { text: original.metadata['sha256'] || original.checksum, font_size: 7 }),
         dokument && zeile.call('Ergebnis (SHA-256)', { text: dokument.metadata['sha256'] || dokument.checksum, font_size: 7 })
       ].compact
-      submitters.each do |item, s|
-        fertig = submission.submission_events.find { |e| e.submitter_id == s.id && e.event_type == 'complete_form' }
-        next unless fertig
-
-        nachweise << zeile.call("Sitzung #{item['name']}", [{ text: "#{fertig.data['sid']}\n", font_size: 7 },
-                                                             { text: fertig.data['ua'].to_s.squish, font_size: 6.5, fill_color: GRAU }])
-        angaben = angaben(submission, s)
-        nachweise << zeile.call("Angaben #{item['name']}", angaben.map { |k, v| "#{k}: #{v}" }.join("\n")) if angaben.any?
-      end
+      # Nur das Wesentliche zur Unterschrift; den vollständigen Verlauf (jeder Aufruf, ausgefüllte Felder, Sitzungen)
+      # zeigt der Assistent unter „Verträge → Dokumentation“ (Nutzerwunsch)
       composer.table(nachweise, column_widths: [115, -1],
                                 cell_style: lambda { |cell|
                                   cell.style.padding = [4, 8, 4, 8]
@@ -188,38 +171,6 @@ module KnoppMarke
                                   cell.style.background_color = cell.row.even? ? 'ffffff' : nil
                                   cell.style.background_alpha = 0.75
                                 })
-
-      # Verlauf
-      composer.text('VERLAUF', style: :abschnitt)
-      verlauf = submission.submission_events.sort_by(&:event_timestamp).filter_map do |e|
-        next if e.event_type.in?(%w[bounce_email complaint_email])
-
-        s = submission.submitters.find { |x| x.id == e.submitter_id }
-        wer = (s&.name || s&.email || s&.phone).to_s.squish
-        teile = if (eigen = EREIGNISSE[e.event_type])
-                  [eigen, wer]
-                else
-                  text = begin
-                    I18n.t(e.event_type.include?('send_') ? "submission_event_names.#{e.event_type}_to_html" : "submission_event_names.#{e.event_type}_by_html",
-                           submitter_name: wer, raise: true)
-                  rescue I18n::MissingTranslationData
-                    "<b>#{e.event_type.humanize}</b> #{wer}"
-                  end
-                  text.match(%r{<b>(.*?)</b>(.*)}m)&.captures || [text, '']
-                end
-        ip = e.data.is_a?(Hash) && e.data['ip'].present? && !e.data['ip'].match?(INTERN) ? "  · IP #{e.data['ip']}" : ''
-        [box.call([{ text: zeit.call(e.event_timestamp), fill_color: GRAU, character_spacing: 0.3 }]),
-         box.call([fett.call(teile[0]), teile[1].to_s.squish.prepend(' '), { text: ip, fill_color: GRAU }])]
-      end
-      if verlauf.any?
-        composer.table(verlauf, column_widths: [125, -1],
-                                cell_style: lambda { |cell|
-                                  cell.style.padding = [4, 8, 4, 8]
-                                  cell.style.border = { width: 0 }
-                                  cell.style.background_color = cell.row.even? ? 'ffffff' : nil
-                                  cell.style.background_alpha = 0.75
-                                })
-      end
 
       composer.formatted_text(
         [fett.call('Rechtlicher Hinweis: ', fill_color: GRAU),
@@ -318,18 +269,6 @@ module KnoppMarke
       { io: StringIO.new(bild.write_to_buffer('.png', strip: true)), breite:, hoehe: }
     rescue StandardError
       nil
-    end
-
-    def angaben(submission, submitter)
-      submission.template_fields.filter_map do |f|
-        next if f['submitter_uuid'] != submitter.uuid || !f['type'].in?(%w[text number date])
-
-        wert = submitter.values[f['uuid']]
-        next if wert.blank?
-
-        wert = TimeUtils.format_date_string(wert, f.dig('preferences', 'format'), submission.account.locale) if f['type'] == 'date'
-        [f['name'], wert.to_s.squish.truncate(60)]
-      end.first(12)
     end
   end
 end
