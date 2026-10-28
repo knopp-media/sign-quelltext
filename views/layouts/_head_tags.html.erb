@@ -5,15 +5,17 @@
 <%= render 'shared/meta' %>
 <%# Farben (HSL wie im daisyUI-Theme von DocuSeal): n = Knöpfe, a = Akzent, p/s = helle Töne, b1–b3 = Hintergründe, bc = Text %>
 <% if ENV.fetch('SIGN_MARKE', '') == 'PresseKreis' %>
-  <%# PresseKreis: Blau mit Goldkante %>
-  <style>html[data-theme=docuseal]{--n:223 92% 30%;--nc:0 0% 100%;--a:39 63% 57%;--ac:224 89% 7%;--p:41 67% 91%;--pc:224 89% 7%;--s:39 63% 80%;--b1:225 18% 97%;--b2:225 21% 93%;--b3:223 21% 89%;--bc:224 63% 12%;--rounded-btn:.8rem}
+  <%# PresseKreis: Navy #020b23 und Gold #d6a64d wie im Logo %>
+  <style>html[data-theme=docuseal]{--n:224 89% 7%;--nc:0 0% 100%;--a:39 63% 57%;--ac:224 89% 7%;--p:41 67% 91%;--pc:224 89% 7%;--s:39 63% 80%;--b1:225 18% 97%;--b2:225 21% 93%;--b3:223 21% 89%;--bc:224 63% 12%;--rounded-btn:.8rem}
   html[data-theme=docuseal] body{padding-top:8px}
-  html[data-theme=docuseal] body::before{content:"";position:fixed;top:0;left:0;right:0;height:8px;background:#020b23;border-bottom:3px solid #d6a64d;z-index:9999}</style>
+  html[data-theme=docuseal] body::before{content:"";position:fixed;top:0;left:0;right:0;height:8px;background:#020b23;border-bottom:3px solid #d6a64d;z-index:9999}
+  html[data-theme=docuseal] .btn-neutral:hover{background:#d6a64d;border-color:#d6a64d;color:#020b23}</style>
 <% else %>
-  <%# Knopp Media: Orange, Knöpfe mit dunkler Schrift (gut lesbar) %>
-  <style>html[data-theme=docuseal]{--n:35 100% 47%;--nc:0 0% 9%;--a:35 100% 47%;--ac:0 0% 9%;--p:35 93% 91%;--pc:0 0% 13%;--s:35 100% 80%;--b1:0 0% 98%;--b2:30 14% 94%;--b3:30 10% 89%;--bc:0 0% 12%;--rounded-btn:.8rem}
+  <%# Knopp Media: Orange #ff8a00 wie im Logo, Knöpfe mit dunkler Schrift (gut lesbar) %>
+  <style>html[data-theme=docuseal]{--n:32 100% 50%;--nc:0 0% 9%;--a:32 100% 50%;--ac:0 0% 9%;--p:35 93% 91%;--pc:0 0% 13%;--s:35 100% 80%;--b1:0 0% 98%;--b2:30 14% 94%;--b3:30 10% 89%;--bc:0 0% 12%;--rounded-btn:.8rem}
   html[data-theme=docuseal] body{padding-top:8px}
-  html[data-theme=docuseal] body::before{content:"";position:fixed;top:0;left:0;right:0;height:8px;background:#f28c00;border-bottom:3px solid #222;z-index:9999}</style>
+  html[data-theme=docuseal] body::before{content:"";position:fixed;top:0;left:0;right:0;height:8px;background:#ff8a00;border-bottom:3px solid #222;z-index:9999}
+  html[data-theme=docuseal] .btn-neutral:hover{background:#222;border-color:#222;color:#fff}</style>
 <% end %>
 <% if turbo_native_app? %>
   <meta name="turbo-cache-control" content="no-preview">
